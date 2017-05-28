@@ -8,12 +8,17 @@ import React, { Component } from 'react';
 import {AppRegistry,StyleSheet,Text,View,Dimensions,TouchableOpacity} from 'react-native';
 import MapView from 'react-native-maps';
 import {Container,Header,Item,Input,Button,Spinner,Toast,Icon,Fab} from 'native-base';
+import { Actions } from 'react-native-router-flux';
 
 const { width, height } = Dimensions.get('window');
 const ratio = width / height;
 const delta = 0.00922;
 let id = 1;
-	
+const GET_BEACONS = "http://5.135.160.204:8080/api/ibeacons/";
+const GET_BUILDINGS = "http://5.135.160.204:8080/api/buildings/";
+const GET_FLOORS = "http://5.135.160.204:8080/api/floors/";
+const GET_ROOMS = "http://5.135.160.204:8080/api/rooms/";
+
 export default class MapOutdoor extends Component {
 	
 	watchID: ?number = null;
@@ -35,46 +40,33 @@ export default class MapOutdoor extends Component {
 			},
 			markers: [],
 			initialized: false,
+			ibeacon: ''
         }
 		
 		this.onRegionChange = this.onRegionChange.bind(this);
-		this.onPress = this.onPress.bind(this);
-		this.onPressLocate = this.onPressLocate.bind(this);
 	}
 	
 	onRegionChange(region) {
 		this.setState({region: region});
 	}
 	
-	onPress(e) {
-		/*
-		Toast.show({
-			text: JSON.stringify(e.nativeEvent.coordinate),
-			position: 'bottom',
-			buttonText: 'Okay'
-		})
-		*/
-	}
-	
-	onPressLocate(e){
-		navigator.geolocation.getCurrentPosition(
-			(position) => {
-				var region = {
-					latitude: position.coords.latitude,
-					longitude: position.coords.longitude,
-					latitudeDelta: delta,
-					longitudeDelta: delta * ratio,
-				}
-				this.map.animateToRegion(region, 1);
-				this.setState({position: position.coords});
-			},
-			(error) => {
-			},
-			{enableHighAccuracy: true, timeout: 2000, maximumAge: 1000}
-		);
-	}
-	
 	componentWillMount() {
+		fetch(GET_BEACONS, {
+			method: 'GET',
+			headers: {
+				'Accept': 'application/json',
+			}
+		}).then((response) => {
+			return response.json();
+		}).then((data) => {
+			if (data.length > 0)
+				this.setState({ibeacon: data[0].uuid});
+			Toast.show({
+				text: data[0].uuid,
+				position: 'bottom',
+				buttonText: 'Okay'
+			});
+		}).done();
 	}
 	
 	componentDidMount() {
@@ -101,6 +93,10 @@ export default class MapOutdoor extends Component {
 		});
 	}
 	
+	search(e){
+		
+	}
+	
 	componentWillUnmount() {
 		navigator.geolocation.clearWatch(this.watchID);
 	}
@@ -112,9 +108,8 @@ export default class MapOutdoor extends Component {
                     <Item rounded>
                         <Icon name="search" />
                         <Input placeholder="Search" />
-                        <Icon name="navigate" />
                     </Item>
-                    <Button transparent>
+                    <Button transparent onPress={(e) => this.search(e)}>
                         <Text>Search</Text>
                     </Button>
                 </Header>
@@ -138,17 +133,15 @@ export default class MapOutdoor extends Component {
 									coordinate={marker.coordinate}
 								/>
 							))}
-						</MapView>						
-						<Fab
-							position="bottomRight"
-							onPress={this.onPressLocate}>
-							<Icon name="locate"/>
-						</Fab>
+						</MapView>
 						<View
 							style={styles.buttonContainer}>
 							<TouchableOpacity
+								onPress={() => {
+									Actions.mapIndoor({id: 4}); 
+								}}
 								style={styles.bubble}>
-								<Text>Indoor map available in your position</Text>
+								<Text>Indoor map is available in your position</Text>
 							</TouchableOpacity>
 						</View>
 					</View>
@@ -176,7 +169,6 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	map: {
-		marginTop: 1.5,
 		...StyleSheet.absoluteFillObject,
 	},
 	bubble: {
