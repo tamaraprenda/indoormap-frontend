@@ -40,14 +40,14 @@ export default class MapOutdoor extends Component {
 			},
 			markers: [],
 			initialized: false,
-			ibeacon: ''
+			ibeacon: '',
+			indoormap: {
+				id: 6,
+				found: true
+			},
         }
 		
 		this.onRegionChange = this.onRegionChange.bind(this);
-	}
-	
-	onRegionChange(region) {
-		this.setState({region: region});
 	}
 	
 	componentWillMount() {
@@ -61,12 +61,108 @@ export default class MapOutdoor extends Component {
 		}).then((data) => {
 			if (data.length > 0)
 				this.setState({ibeacon: data[0].uuid});
-			Toast.show({
-				text: data[0].uuid,
-				position: 'bottom',
-				buttonText: 'Okay'
-			});
 		}).done();
+	}
+	
+	onRegionChange(region) {
+		this.setState({region: region});
+	}
+	
+	search(string){
+		this.setState({markers: []});
+		fetch(GET_BUILDINGS + "?search=" + string, {
+			method: 'GET',
+			headers: {
+				'Accept': 'application/json',
+			}
+		}).then((response) => {
+			return response.json();
+		}).then((data) => {
+			if (data.length > 0){
+				this.setState({markers: data});
+			}
+			else{
+				fetch(GET_ROOMS + "?search=" + string, {
+					method: 'GET',
+					headers: {
+						'Accept': 'application/json',
+					}
+				}).then((response) => {
+					return response.json();
+				}).then((data) => {
+					if (data.length > 0){
+						this.setState({markers: data});
+					}
+					else{
+						Toast.show({
+							text: string + " is not found in all indoor maps",
+							position: 'bottom',
+							buttonText: 'Okay'
+						});
+					}
+				}).done();
+			}
+		}).done();
+	}
+	
+	render() {
+		return (
+			<Container>
+				<Header searchBar rounded style={{backgroundColor:'transparent'}}>
+                    <Item rounded>
+                        <Icon name="search" />
+                        <Input
+							onSubmitEditing={event => this.search(event.nativeEvent.text)}
+							placeholder="Search" />
+                    </Item>
+                    <Button transparent>
+                        <Text>Search</Text>
+                    </Button>
+                </Header>
+				{!this.state.initialized ? (
+					<View style={styles.container}>
+						<Loading />
+					</View>
+				) : (
+					<View
+						style={styles.container}>
+						<MapView
+							ref={ref => { this.map = ref; }}
+							style={styles.map}
+							showsUserLocation={true}
+							region={this.state.region}
+							onRegionChange={this.onRegionChange}>
+							{this.state.markers.map(marker => (
+								<MapView.Marker
+									title={marker.title}
+									description={marker.description}
+									key={marker.id}
+									coordinate={{
+										latitude:Number(marker.latitude),
+										longitude:Number(marker.longitude)
+									}}
+								/>
+							))}
+						</MapView>
+						{this.state.indoormap.found ? (
+							<View
+								style={styles.buttonContainer}>
+								<TouchableOpacity
+									onPress={() => {
+										Actions.mapIndoor({id: this.state.indoormap.id}); 
+									}}
+									style={styles.bubble}>
+									<Text>Indoor map is available in your position</Text>
+								</TouchableOpacity>
+							</View>
+						) : (
+							<View>
+							</View>
+						)}
+					</View>
+				)}
+			</Container>
+		);
 	}
 	
 	componentDidMount() {
@@ -93,61 +189,8 @@ export default class MapOutdoor extends Component {
 		});
 	}
 	
-	search(e){
-		
-	}
-	
 	componentWillUnmount() {
 		navigator.geolocation.clearWatch(this.watchID);
-	}
-	
-	render() {
-		return (
-			<Container>
-				<Header searchBar rounded style={{backgroundColor:'transparent'}}>
-                    <Item rounded>
-                        <Icon name="search" />
-                        <Input placeholder="Search" />
-                    </Item>
-                    <Button transparent onPress={(e) => this.search(e)}>
-                        <Text>Search</Text>
-                    </Button>
-                </Header>
-				{!this.state.initialized ? (
-					<View style={styles.container}>
-						<Loading />
-					</View>
-				) : (
-					<View
-						style={styles.container}>
-						<MapView
-							ref={ref => { this.map = ref; }}
-							style={styles.map}
-							showsUserLocation={true}
-							region={this.state.region}
-							onRegionChange={this.onRegionChange}>
-							{this.state.markers.map(marker => (
-								<MapView.Marker
-									title={marker.title}
-									key={marker.key}
-									coordinate={marker.coordinate}
-								/>
-							))}
-						</MapView>
-						<View
-							style={styles.buttonContainer}>
-							<TouchableOpacity
-								onPress={() => {
-									Actions.mapIndoor({id: 4}); 
-								}}
-								style={styles.bubble}>
-								<Text>Indoor map is available in your position</Text>
-							</TouchableOpacity>
-						</View>
-					</View>
-				)}
-			</Container>
-		);
 	}
 }
 

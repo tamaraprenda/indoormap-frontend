@@ -63,6 +63,7 @@ export default class MapIndoor extends Component {
 	}
 	
 	zoomMap(e){
+		/*
 		this.setState({
 			positionX:e.nativeEvent.locationX, 
 			positionY:e.nativeEvent.locationY,
@@ -75,6 +76,7 @@ export default class MapIndoor extends Component {
 			position: 'bottom',
 			buttonText: 'Okay'
 		});
+		*/
 	}
 	
 	render() {
@@ -103,6 +105,10 @@ export default class MapIndoor extends Component {
 				</ScrollView>
 			</View>
 		);
+	}
+	
+	componentDidMount() {
+		
 	}
 
 }
