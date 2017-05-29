@@ -5,10 +5,11 @@
  */
 
 import React, {Component} from 'react';
-import {AppRegistry,StyleSheet,Text,View,Image,Dimensions,ScrollView,TouchableOpacity} from 'react-native';
+import {AppRegistry,StyleSheet,Text,View,Image,Dimensions,ScrollView,TouchableOpacity,DeviceEventEmitter} from 'react-native';
 import {Toast} from 'native-base';
 import {Actions} from 'react-native-router-flux';
 import Icon from 'react-native-vector-icons/Ionicons';
+import Beacons from 'react-native-beacons-manager';
 
 const { width, height } = Dimensions.get('window');
 const ratio = width / height;
@@ -22,15 +23,20 @@ export default class MapIndoor extends Component {
 	constructor(props) {
         super(props);
 		this.state = {
+			loading:false,
+			debug: "",
 			imageWidth: 0,
 			imageHeight: 0,
 			zoom: 1,
 			offsetX: 0,
 			offsetY: 0,
-			positionX: 0,
-			positionY: 0,
 			floor: {
 				image: 'http://5.135.160.204/VIII2.png'
+			},
+			rooms: [],
+			position: {
+				x: 0,
+				y: 0,
 			}
         }
     }
@@ -59,10 +65,20 @@ export default class MapIndoor extends Component {
 					});
 				}
 			});
+			Beacons.detectIBeacons();
+			Beacons
+				.startRangingBeaconsInRegion("itbindoormap1", this.props.uuid)
+				.then(() => console.log('Beacons ranging started succesfully'))
+				.catch(error => console.log(`Beacons ranging not started, error: ${error}`));
 		}).done();
 	}
 	
 	zoomMap(e){
+		Toast.show({
+			text: this.state.debug,
+			position: 'bottom',
+			buttonText: 'Okay'
+		});
 		/*
 		this.setState({
 			positionX:e.nativeEvent.locationX, 
@@ -95,7 +111,7 @@ export default class MapIndoor extends Component {
 								style={mapStyle(this.state)}
 								source={{uri: this.state.floor.image}}>
 								<Icon
-									style={{top:this.state.positionY, left:this.state.positionX}}
+									style={{top:this.state.position.y, left:this.state.position.x}}
 									name='ios-man'
 									size={30}
 									color="blue" />
@@ -108,7 +124,54 @@ export default class MapIndoor extends Component {
 	}
 	
 	componentDidMount() {
-		
+		DeviceEventEmitter.addListener(
+            'beaconsDidRange',
+            (data) => {
+				var beacons = [];
+				for (i in data.beacons){
+					if (data.beacons[i].major == this.props.id){
+						beacons.push(data.beacons[i]);
+					}
+				}
+				if (!this.state.loading){
+					this.setState({loading:true});
+					fetch(GET_FLOORS + this.props.id + "/rooms", {
+						method: 'POST',
+						headers: {
+							'Accept': 'application/json',
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(beacons)
+					}).then((response) => {
+						return response.json();
+					}).then((data) => {
+						if (data.length > 0){
+							
+							var ratio = this.state.floor.width / this.state.imageWidth;
+							var position = data[0].position;
+							this.setState({debug: JSON.stringify(position)});
+							position.x = position.x / ratio;
+							position.y = position.y / ratio;
+							this.setState({rooms: data});
+							this.setState({position: position});
+							
+						}
+					}).catch((error) => {
+						this.setState({debug: error});
+					}).done(() => {
+						this.setState({loading:false});
+					});
+				}
+            }
+        );
+	}
+	
+	componentWillUnmount() {
+		Beacons
+            .stopRangingBeaconsInRegion("itbindoormap1", this.props.uuid)
+            .then(() => console.log('Beacons ranging stopped succesfully'))
+            .catch(error => console.log(`Beacons ranging not stopped, error: ${error}`));
+        DeviceEventEmitter.removeListener('beaconsDidRange');
 	}
 
 }
