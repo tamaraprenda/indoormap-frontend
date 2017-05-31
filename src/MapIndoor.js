@@ -6,13 +6,14 @@
 
 import React, {Component} from 'react';
 import {AppRegistry,StyleSheet,Text,View,Image,Dimensions,ScrollView,TouchableOpacity,DeviceEventEmitter} from 'react-native';
-import {Toast} from 'native-base';
+import {Container,Header,Item,Input,Button,Spinner,Toast,Fab,Left} from 'native-base';
 import {Actions} from 'react-native-router-flux';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Beacons from 'react-native-beacons-manager';
 
 const { width, height } = Dimensions.get('window');
 const ratio = width / height;
+const delta = 0.01;
 
 const GET_BEACONS = "http://5.135.160.204:8080/api/ibeacons/";
 const GET_BUILDINGS = "http://5.135.160.204:8080/api/buildings/";
@@ -22,12 +23,12 @@ export default class MapIndoor extends Component {
 		
 	constructor(props) {
         super(props);
+		
 		this.state = {
 			loading:false,
 			debug: "",
 			imageWidth: 0,
 			imageHeight: 0,
-			zoom: 1,
 			offsetX: 0,
 			offsetY: 0,
 			floor: {
@@ -37,7 +38,23 @@ export default class MapIndoor extends Component {
 			position: {
 				x: 0,
 				y: 0,
-			}
+			},
+			
+			searching: false,
+			title: "No Indoor Map here",
+            region: {
+				latitude: 37.78825,
+				longitude: -122.4324,
+				latitudeDelta: delta,
+				longitudeDelta: delta * ratio,
+			},
+			markers: [],
+			initialized: false,
+			uuid: '',
+			indoormap: {
+				id: 6,
+				found: false
+			},
         }
     }
 	
@@ -73,53 +90,55 @@ export default class MapIndoor extends Component {
 		}).done();
 	}
 	
-	zoomMap(e){
+	onStartMeasure(e){
 		Toast.show({
 			text: this.state.debug,
 			position: 'bottom',
 			buttonText: 'Okay'
 		});
-		/*
-		this.setState({
-			positionX:e.nativeEvent.locationX, 
-			positionY:e.nativeEvent.locationY,
-		});
-		var ratio = this.state.floor.width / this.state.imageWidth;
-		var x = e.nativeEvent.locationX * ratio;
-		var y = e.nativeEvent.locationY * ratio;
-		Toast.show({
-			text: "<" + x + "," + y + ">",
-			position: 'bottom',
-			buttonText: 'Okay'
-		});
-		*/
+	}
+	
+	onBackToOutdoorMap(){
+		setTimeout(() => {
+			Actions.pop();
+		},0);
 	}
 	
 	render() {
 		return (
-			<View style={{width:width, height:height}}>
-				<ScrollView>
-					<ScrollView
-						horizontal={true}						
-						maximumZoomScale={1}
-						maximumZoomScale={3}
-						zoomScale={2}>
-						<TouchableOpacity
-							activeOpacity={1}
-							onPress={(e) => this.zoomMap(e)}>
-							<Image
-								style={mapStyle(this.state)}
-								source={{uri: this.state.floor.image}}>
-								<Icon
-									style={{top:this.state.position.y, left:this.state.position.x}}
-									name='ios-man'
-									size={30}
-									color="blue" />
-							</Image>
-						</TouchableOpacity>
+			<Container>
+				<Header style={{backgroundColor:'transparent'}}>
+					<Left>
+                        <Button transparent
+							onPress={this.onBackToOutdoorMap} >
+                            <Icon name='ios-arrow-dropleft' />
+                        </Button>
+                    </Left>
+                </Header>
+				<View style={{width:width, height:height}}>
+					<ScrollView>
+						<ScrollView
+							horizontal={true}						
+							maximumZoomScale={1}
+							maximumZoomScale={3}
+							zoomScale={2}>
+							<TouchableOpacity
+								activeOpacity={1}
+								onLongPress={(e) => this.onStartMeasure(e)}>
+								<Image
+									style={mapStyle(this.state)}
+									source={{uri: this.state.floor.image}}>
+									<Icon
+										style={{top:this.state.position.y, left:this.state.position.x}}
+										name='ios-radio-button-on'
+										size={30}
+										color="blue" />
+								</Image>
+							</TouchableOpacity>
+						</ScrollView>
 					</ScrollView>
-				</ScrollView>
-			</View>
+				</View>
+			</Container>
 		);
 	}
 	
@@ -149,7 +168,10 @@ export default class MapIndoor extends Component {
 							
 							var ratio = this.state.floor.width / this.state.imageWidth;
 							var position = data[0].position;
-							this.setState({debug: JSON.stringify(position)});
+							this.setState({debug: JSON.stringify({
+								x: position.x.toFixed(2),
+								y: position.y.toFixed(2)
+							})});
 							position.x = position.x / ratio;
 							position.y = position.y / ratio;
 							this.setState({rooms: data});

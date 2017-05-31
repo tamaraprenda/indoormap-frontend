@@ -48,6 +48,9 @@ export default class MapOutdoor extends Component {
 				id: 6,
 				found: false
 			},
+			
+			loading:false,
+			rooms: [],
         }
 		
 		this.onRegionChange = this.onRegionChange.bind(this);
